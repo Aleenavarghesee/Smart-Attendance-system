@@ -1,0 +1,49 @@
+import os
+import pyaudio
+import wave
+
+def record_audio(file_path, seconds=5):
+    CHUNK = 1024
+    FORMAT = pyaudio.paInt16
+    CHANNELS = 1
+    RATE = 44100
+    RECORD_SECONDS = seconds
+
+    audio = pyaudio.PyAudio()
+
+    stream = audio.open(format=FORMAT, channels=CHANNELS,
+                        rate=RATE, input=True,
+                        frames_per_buffer=CHUNK)
+
+    print("Recording...")
+
+    frames = []
+
+    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+        data = stream.read(CHUNK)
+        frames.append(data)
+
+    print("Finished recording.")
+
+    stream.stop_stream()
+    stream.close()
+    audio.terminate()
+
+    wf = wave.open(file_path, 'wb')
+    wf.setnchannels(CHANNELS)
+    wf.setsampwidth(audio.get_sample_size(FORMAT))
+    wf.setframerate(RATE)
+    wf.writeframes(b''.join(frames))
+    wf.close()
+
+def main():
+    name = input("Please say your name: ")
+    folder_name = "recordings"
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    file_path = os.path.join(folder_name, f"{name.lower().replace(' ', '_')}.wav")
+    record_audio(file_path)
+    print(f"Recording saved as {file_path}")
+
+if _name_ == "_main_":
+    main()

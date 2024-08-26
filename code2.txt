@@ -1,0 +1,53 @@
+import os
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+import joblib
+from python_speech_features import mfcc
+import scipy.io.wavfile as wav
+
+# Function to extract MFCC features from audio file
+def extract_features(file_path, mfcc_dim=13, winlen=0.025, winstep=0.01, nfft=1024):
+    rate, audio = wav.read(file_path)
+    features = mfcc(audio, rate, winlen=winlen, winstep=winstep, numcep=mfcc_dim, nfilt=26, nfft=nfft)
+    return np.mean(features, axis=0)
+
+# Function to load data and labels
+def load_data(folder_path):
+    X, y = [], []
+    for file_name in os.listdir(folder_path):
+        if file_name.endswith(".wav"):
+            file_path = os.path.join(folder_path, file_name)
+            features = extract_features(file_path)
+            X.append(features)
+            y.append(file_name.split('.')[0])
+    return np.array(X), np.array(y)
+
+# Load data
+folder_path = "recordings"
+X, y = load_data(folder_path)
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train SVM classifier
+clf = SVC(kernel='linear')
+clf.fit(X_train, y_train)
+
+# Predict labels for test set
+y_pred = clf.predict(X_test)
+
+# Calculate accuracy
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy: {accuracy}")
+
+# Save the model
+model_file = "voice_recognition_model.pkl"
+joblib.dump(clf, model_file)
+
+# Save accuracy to a file
+accuracy_file = "accuracy.txt"
+with open(accuracy_file, "w") as f:
+    f.write(f"Accuracy: {accuracy}")
+

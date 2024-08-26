@@ -1,0 +1,76 @@
+import os
+import numpy as np
+import pyaudio
+import wave
+import joblib
+from python_speech_features import mfcc
+import scipy.io.wavfile as wav
+
+# Function to extract MFCC features from audio data
+def extract_features(audio_data, rate, mfcc_dim=13, winlen=0.025, winstep=0.01, nfft=1024):
+    features = mfcc(audio_data, rate, winlen=winlen, winstep=winstep, numcep=mfcc_dim, nfilt=26, nfft=nfft)
+    return np.mean(features, axis=0)
+
+# Load trained model
+model_file = "voice_recognition_model.pkl"
+clf = joblib.load(model_file)
+
+# Function to record audio
+def record_audio(file_name, seconds=5):
+    CHUNK = 1024
+    FORMAT = pyaudio.paInt16
+    CHANNELS = 1
+    RATE = 44100
+    RECORD_SECONDS = seconds
+
+    audio = pyaudio.PyAudio()
+
+    stream = audio.open(format=FORMAT, channels=CHANNELS,
+                        rate=RATE, input=True,
+                        frames_per_buffer=CHUNK)
+
+    print("Recording...")
+
+    frames = []
+
+    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+        data = stream.read(CHUNK)
+        frames.append(data)
+
+    print("Finished recording.")
+
+    stream.stop_stream()
+    stream.close()
+    audio.terminate()
+
+    wf = wave.open(file_name, 'wb')
+    wf.setnchannels(CHANNELS)
+    wf.setsampwidth(audio.get_sample_size(FORMAT))
+    wf.setframerate(RATE)
+    wf.writeframes(b''.join(frames))
+    wf.close()
+
+# Function to perform voice recognition
+def recognize_voice():
+    file_name = "temp.wav"
+    record_audio(file_name)
+
+    # Extract features from recorded audio
+    rate, audio_data = wav.read(file_name)
+    features = extract_features(audio_data, rate)
+
+    # Predict using trained model
+    speaker = clf.predict([features])[0]
+    print("Predicted speaker:", speaker)
+
+    # Delete temporary file
+    os.remove(file_name)
+
+# Main function
+def main():
+    while True:
+        input("Press Enter to start recording (Ctrl+C to exit)...")
+        recognize_voice()
+
+if _name_ == "_main_":
+    main()
